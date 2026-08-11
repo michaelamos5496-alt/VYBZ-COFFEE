@@ -82,6 +82,8 @@ export type StockMovement = {
   inventory_item_id: string
   movement_type: StockMovementType
   quantity: number
+  previous_quantity: number
+  new_quantity: number
   reference_type: string | null
   reference_id: string | null
   note: string | null
