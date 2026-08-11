@@ -75,6 +75,7 @@ export type RecipeItem = {
   recipe_id: string
   inventory_item_id: string
   quantity: number
+  unit: InventoryUnit
 }
 
 export type StockMovement = {
@@ -105,6 +106,17 @@ export type BusinessSettings = {
   payment_methods: string[]
   created_at: string
   updated_at: string
+}
+
+export type SaveRecipeItemInput = {
+  inventory_item_id: string
+  quantity: number
+  unit: InventoryUnit
+}
+
+export type ProcessSaleItemInput = {
+  product_id: string
+  quantity: number
 }
 
 export type Database = {
@@ -162,6 +174,7 @@ export type Database = {
           recipe_id: string
           inventory_item_id: string
           quantity: number
+          unit: InventoryUnit
         }
         Update: Partial<RecipeItem>
         Relationships: [
@@ -214,7 +227,20 @@ export type Database = {
       }
     }
     Views: Record<string, never>
-    Functions: Record<string, never>
+    Functions: {
+      save_recipe: {
+        Args: { p_product_id: string; p_items: SaveRecipeItemInput[] }
+        Returns: string
+      }
+      process_sale: {
+        Args: {
+          p_order_id: string
+          p_items: ProcessSaleItemInput[]
+          p_created_by: string | null
+        }
+        Returns: undefined
+      }
+    }
     Enums: {
       staff_role: StaffRole
       inventory_unit: InventoryUnit
