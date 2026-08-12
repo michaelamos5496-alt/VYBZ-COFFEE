@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache"
 
 import { createClient } from "@/lib/supabase/server"
+import { toFriendlyError } from "@/lib/errors"
 import {
   validateRecipeItems,
   type RecipeItemDraft,
@@ -20,7 +21,7 @@ export async function saveRecipe(productId: string, items: RecipeItemDraft[]) {
       items.map((item) => item.inventoryItemId)
     )
 
-  if (inventoryError) return { error: inventoryError.message }
+  if (inventoryError) return { error: toFriendlyError(inventoryError) }
 
   const inventoryLookup = Object.fromEntries(
     (inventoryItems ?? []).map((item) => [item.id, { unit: item.unit }])
@@ -38,7 +39,7 @@ export async function saveRecipe(productId: string, items: RecipeItemDraft[]) {
     })),
   })
 
-  if (error) return { error: error.message }
+  if (error) return { error: toFriendlyError(error) }
 
   revalidatePath("/recipes")
   return { error: null }
@@ -48,7 +49,7 @@ export async function deleteRecipe(recipeId: string) {
   const supabase = await createClient()
   const { error } = await supabase.from("recipes").delete().eq("id", recipeId)
 
-  if (error) return { error: error.message }
+  if (error) return { error: toFriendlyError(error) }
 
   revalidatePath("/recipes")
   return { error: null }

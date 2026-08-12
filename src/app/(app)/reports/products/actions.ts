@@ -1,6 +1,7 @@
 "use server"
 
 import { createClient } from "@/lib/supabase/server"
+import { toFriendlyError } from "@/lib/errors"
 
 const EXPORT_ROW_CAP = 5000
 
@@ -14,7 +15,7 @@ export async function exportProductPerformance(start: string, end: string) {
     p_offset: 0,
   })
 
-  if (error) return { error: error.message, rows: [] }
+  if (error) return { error: toFriendlyError(error), rows: [] }
 
   return { error: null, rows: data ?? [] }
 }

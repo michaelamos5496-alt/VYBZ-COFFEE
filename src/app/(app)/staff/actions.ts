@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache"
 
 import { createClient } from "@/lib/supabase/server"
 import { createAdminClient } from "@/lib/supabase/admin"
+import { toFriendlyError } from "@/lib/errors"
 import { canManageStaff } from "@/lib/auth/permissions"
 import type { StaffRole } from "@/types/database"
 
@@ -77,7 +78,7 @@ export async function updateStaff(id: string, input: UpdateStaffInput) {
 
   const { error } = await supabase.from("staff").update(input).eq("id", id)
 
-  if (error) return { error: error.message }
+  if (error) return { error: toFriendlyError(error) }
 
   revalidatePath("/staff")
   return { error: null }

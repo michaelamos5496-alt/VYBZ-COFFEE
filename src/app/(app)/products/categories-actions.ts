@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache"
 
 import { createClient } from "@/lib/supabase/server"
+import { toFriendlyError } from "@/lib/errors"
 
 export type CategoryInput = {
   name: string
@@ -25,7 +26,7 @@ export async function createCategory(input: CategoryInput) {
     .from("categories")
     .insert({ ...input, sort_order: nextSortOrder })
 
-  if (error) return { error: error.message }
+  if (error) return { error: toFriendlyError(error) }
 
   revalidatePath("/products")
   return { error: null }
@@ -38,7 +39,7 @@ export async function updateCategory(id: string, input: CategoryInput) {
     .update(input)
     .eq("id", id)
 
-  if (error) return { error: error.message }
+  if (error) return { error: toFriendlyError(error) }
 
   revalidatePath("/products")
   return { error: null }
@@ -51,7 +52,7 @@ export async function setCategoryActive(id: string, active: boolean) {
     .update({ active })
     .eq("id", id)
 
-  if (error) return { error: error.message }
+  if (error) return { error: toFriendlyError(error) }
 
   revalidatePath("/products")
   return { error: null }
@@ -74,7 +75,9 @@ export async function reorderCategory(id: string, direction: "up" | "down", orde
     .in("id", [id, otherId])
 
   if (fetchError || !rows || rows.length !== 2) {
-    return { error: fetchError?.message ?? "Could not reorder category" }
+    return {
+      error: fetchError ? toFriendlyError(fetchError) : "Could not reorder category",
+    }
   }
 
   const current = rows.find((row) => row.id === id)!
@@ -85,14 +88,14 @@ export async function reorderCategory(id: string, direction: "up" | "down", orde
     .update({ sort_order: other.sort_order })
     .eq("id", current.id)
 
-  if (first.error) return { error: first.error.message }
+  if (first.error) return { error: toFriendlyError(first.error) }
 
   const second = await supabase
     .from("categories")
     .update({ sort_order: current.sort_order })
     .eq("id", other.id)
 
-  if (second.error) return { error: second.error.message }
+  if (second.error) return { error: toFriendlyError(second.error) }
 
   revalidatePath("/products")
   return { error: null }

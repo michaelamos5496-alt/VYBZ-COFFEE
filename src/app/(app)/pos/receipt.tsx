@@ -1,5 +1,6 @@
 "use client"
 
+import { useEffect } from "react"
 import { Printer, ShoppingBag } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -7,6 +8,7 @@ import { Separator } from "@/components/ui/separator"
 import { DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import type { CartItem } from "@/lib/pos/cart"
 import type { OrderTotals } from "@/lib/pos/order-totals"
+import { thermalReceiptPrintCss } from "@/lib/pos/receipt-print"
 import type { BusinessSettings, CheckoutResult, PaymentMethod } from "@/types/database"
 
 const PAYMENT_LABELS: Record<PaymentMethod, string> = {
@@ -40,9 +42,24 @@ export function Receipt({
 }) {
   const businessName = settings?.business_name ?? "Marvin Coffee Spot"
   const date = new Date(completedAt)
+  const paperWidth = settings?.receipt_paper_width ?? "80mm"
+
+  // Fastest path back to the till: Enter or "n" starts the next sale
+  // without reaching for the mouse.
+  useEffect(() => {
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Enter" || event.key === "n") {
+        event.preventDefault()
+        onNewSale()
+      }
+    }
+    document.addEventListener("keydown", handleKeyDown)
+    return () => document.removeEventListener("keydown", handleKeyDown)
+  }, [onNewSale])
 
   return (
     <div>
+      <style>{thermalReceiptPrintCss(paperWidth)}</style>
       <DialogHeader>
         <DialogTitle>Sale Complete</DialogTitle>
       </DialogHeader>
@@ -141,6 +158,9 @@ export function Receipt({
         <Button className="flex-1" onClick={onNewSale}>
           <ShoppingBag />
           New Sale
+          <kbd className="ml-auto hidden rounded border border-current/25 px-1.5 py-0.5 text-[10px] font-normal opacity-60 lg:inline-block">
+            Enter
+          </kbd>
         </Button>
       </div>
     </div>

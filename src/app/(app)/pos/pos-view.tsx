@@ -1,6 +1,6 @@
 "use client"
 
-import { useMemo, useState, useTransition } from "react"
+import { useEffect, useMemo, useRef, useState, useTransition } from "react"
 import { Clock, Coffee, Search } from "lucide-react"
 import { toast } from "sonner"
 import { useRouter } from "next/navigation"
@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/alert-dialog"
 import { EmptyState } from "@/components/layout/empty-state"
 import { AppHeader } from "@/components/layout/app-header"
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet"
 import type { BusinessSettings, Category, PaymentMethod, Product } from "@/types/database"
 import {
   addToCart,
@@ -32,6 +33,7 @@ import {
   type CartItem,
 } from "@/lib/pos/cart"
 import { calculateOrderTotals } from "@/lib/pos/order-totals"
+import { useBarcodeScanner } from "@/lib/pos/use-barcode-scanner"
 import { CartPanel } from "./cart-panel"
 import { CheckoutDialog } from "./checkout-dialog"
 import { HeldOrdersDialog } from "./held-orders-dialog"
@@ -64,6 +66,11 @@ export function PosView({
   const [checkoutKey, setCheckoutKey] = useState(0)
   const [heldOrdersOpen, setHeldOrdersOpen] = useState(false)
   const [cancelConfirmOpen, setCancelConfirmOpen] = useState(false)
+  const [cartSheetOpen, setCartSheetOpen] = useState(false)
+  const searchInputRef = useRef<HTMLInputElement>(null)
+
+  const anyDialogOpen =
+    checkoutOpen || heldOrdersOpen || cancelConfirmOpen || cartSheetOpen
 
   const paymentMethods = (
     settings?.payment_methods && settings.payment_methods.length > 0
@@ -120,6 +127,7 @@ export function PosView({
 
   function handleCancel() {
     setCancelConfirmOpen(false)
+    setCartSheetOpen(false)
     handleNewSale()
   }
 
@@ -132,6 +140,7 @@ export function PosView({
       }
       toast.success("Order held")
       handleNewSale()
+      setCartSheetOpen(false)
       router.refresh()
     })
   }
@@ -141,12 +150,71 @@ export function PosView({
     setDiscount(0)
   }
 
+  function handleOpenCheckout() {
+    if (cart.length === 0) return
+    setCartSheetOpen(false)
+    setCheckoutKey((k) => k + 1)
+    setCheckoutOpen(true)
+  }
+
+  function scanToCart(code: string) {
+    const match = products.find(
+      (product) => product.sku?.toLowerCase() === code.toLowerCase()
+    )
+    if (!match) {
+      toast.error(`No product found for barcode "${code}"`)
+      return
+    }
+    handleAddToCart(match)
+    toast.success(`Added ${match.name}`)
+  }
+
+  // Works with any USB/Bluetooth scanner in keyboard-wedge mode — no
+  // driver or specific hardware required. Only active when no dialog is
+  // open, so a scan can't add an item behind the cashier's back mid-checkout.
+  useBarcodeScanner(scanToCart, !anyDialogOpen)
+
+  // Keyboard shortcuts, all inert while typing in a field or with a
+  // dialog open, so they never fight with normal typing.
+  useEffect(() => {
+    function handleKeyDown(event: KeyboardEvent) {
+      const target = event.target
+      const isTyping =
+        target instanceof HTMLElement &&
+        (target.tagName === "INPUT" ||
+          target.tagName === "TEXTAREA" ||
+          target.isContentEditable)
+
+      if (event.key === "/" && !isTyping) {
+        event.preventDefault()
+        searchInputRef.current?.focus()
+        return
+      }
+
+      if (isTyping || anyDialogOpen) return
+
+      if (event.key === "c" && cart.length > 0) {
+        handleOpenCheckout()
+      } else if (event.key === "h" && cart.length > 0) {
+        handleHold()
+      } else if (event.key === "Delete" && cart.length > 0) {
+        setCancelConfirmOpen(true)
+      }
+    }
+
+    document.addEventListener("keydown", handleKeyDown)
+    return () => document.removeEventListener("keydown", handleKeyDown)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cart.length, anyDialogOpen])
+
+  const cartItemCount = cart.reduce((sum, item) => sum + item.quantity, 0)
+
   return (
     <div className="flex h-svh flex-col">
       <AppHeader title="New Sale" />
-      <div className="grid flex-1 grid-cols-[220px_1fr_360px] overflow-hidden">
-      {/* LEFT: categories */}
-      <div className="bg-sidebar text-sidebar-foreground flex flex-col overflow-y-auto border-r">
+      <div className="grid flex-1 overflow-hidden lg:grid-cols-[220px_1fr_360px]">
+      {/* LEFT: categories (desktop only — mobile uses the chip row below the search bar) */}
+      <div className="bg-sidebar text-sidebar-foreground hidden flex-col overflow-y-auto border-r lg:flex">
         <nav className="flex flex-col gap-1 p-2">
           <Button
             variant={categoryFilter === ALL_CATEGORIES ? "secondary" : "ghost"}
@@ -170,30 +238,71 @@ export function PosView({
 
       {/* CENTER: search + product grid */}
       <div className="flex flex-col overflow-hidden">
-        <div className="flex items-center gap-3 border-b p-4">
-          <div className="relative flex-1">
-            <Search className="text-muted-foreground pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2" />
-            <Input
-              placeholder="Search products…"
-              className="h-11 pl-9"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
+        <div className="flex flex-col gap-3 border-b p-4">
+          <div className="flex items-center gap-3">
+            <div className="relative flex-1">
+              <Search className="text-muted-foreground pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2" />
+              <Input
+                ref={searchInputRef}
+                placeholder="Search products…"
+                className="h-11 pl-9"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                onKeyDown={(e) => {
+                  // A scanner that types into the focused search box lands
+                  // here instead of the global listener (which skips inputs).
+                  if (e.key !== "Enter") return
+                  const match = products.find(
+                    (product) => product.sku?.toLowerCase() === search.trim().toLowerCase()
+                  )
+                  if (match) {
+                    e.preventDefault()
+                    handleAddToCart(match)
+                    toast.success(`Added ${match.name}`)
+                    setSearch("")
+                  }
+                }}
+              />
+            </div>
+            <Button
+              variant="outline"
+              className="h-11"
+              onClick={() => setHeldOrdersOpen(true)}
+            >
+              <Clock />
+              <span className="hidden sm:inline">Held</span>
+              {heldOrders.length > 0 && (
+                <Badge variant="secondary">{heldOrders.length}</Badge>
+              )}
+            </Button>
           </div>
-          <Button
-            variant="outline"
-            className="h-11"
-            onClick={() => setHeldOrdersOpen(true)}
-          >
-            <Clock />
-            Held
-            {heldOrders.length > 0 && (
-              <Badge variant="secondary">{heldOrders.length}</Badge>
-            )}
-          </Button>
+
+          {/* Mobile category chips — replaces the sidebar list with a
+              thumb-friendly horizontal scroller on small screens. */}
+          <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-0.5 lg:hidden">
+            <Button
+              size="sm"
+              variant={categoryFilter === ALL_CATEGORIES ? "default" : "outline"}
+              className="shrink-0 rounded-full"
+              onClick={() => setCategoryFilter(ALL_CATEGORIES)}
+            >
+              All
+            </Button>
+            {categories.map((category) => (
+              <Button
+                key={category.id}
+                size="sm"
+                variant={categoryFilter === category.id ? "default" : "outline"}
+                className="shrink-0 rounded-full"
+                onClick={() => setCategoryFilter(category.id)}
+              >
+                {category.name}
+              </Button>
+            ))}
+          </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-4">
+        <div className="flex-1 overflow-y-auto p-4 pb-28 lg:pb-4">
           {filteredProducts.length === 0 ? (
             <EmptyState
               icon={Search}
@@ -244,8 +353,8 @@ export function PosView({
         </div>
       </div>
 
-      {/* RIGHT: cart */}
-      <div className="bg-background overflow-hidden border-l">
+      {/* RIGHT: cart (desktop only — mobile uses the bottom bar + sheet below) */}
+      <div className="bg-background hidden overflow-hidden border-l lg:block">
         <CartPanel
           cart={cart}
           totals={totals}
@@ -256,14 +365,51 @@ export function PosView({
           onRemove={handleRemove}
           onHold={handleHold}
           onCancel={() => setCancelConfirmOpen(true)}
-          onCheckout={() => {
-            setCheckoutKey((k) => k + 1)
-            setCheckoutOpen(true)
-          }}
+          onCheckout={handleOpenCheckout}
           isBusy={isPending}
         />
       </div>
       </div>
+
+      {/* Mobile bottom cart bar — a single, unmissable tap target that
+          mirrors the "view cart" pattern of simple mobile storefronts. */}
+      {cart.length > 0 && (
+        <button
+          onClick={() => setCartSheetOpen(true)}
+          className="bg-primary text-primary-foreground fixed inset-x-3 bottom-3 z-20 flex h-14 items-center justify-between rounded-xl px-4 shadow-lg active:scale-[0.98] lg:hidden"
+        >
+          <span className="flex items-center gap-2 text-sm font-medium">
+            <Badge variant="secondary" className="bg-primary-foreground/20 text-primary-foreground">
+              {cartItemCount}
+            </Badge>
+            View Cart
+          </span>
+          <span className="text-base font-semibold tabular-nums">
+            GH₵{totals.total.toFixed(2)}
+          </span>
+        </button>
+      )}
+
+      <Sheet open={cartSheetOpen} onOpenChange={setCartSheetOpen}>
+        <SheetContent side="bottom" className="h-[88vh] p-0 lg:hidden">
+          <SheetHeader className="sr-only">
+            <SheetTitle>Current Order</SheetTitle>
+          </SheetHeader>
+          <CartPanel
+            cart={cart}
+            totals={totals}
+            discount={discount}
+            onDiscountChange={setDiscount}
+            onIncrement={handleIncrement}
+            onDecrement={handleDecrement}
+            onRemove={handleRemove}
+            onHold={handleHold}
+            onCancel={() => setCancelConfirmOpen(true)}
+            onCheckout={handleOpenCheckout}
+            isBusy={isPending}
+          />
+        </SheetContent>
+      </Sheet>
 
       <CheckoutDialog
         key={checkoutKey}

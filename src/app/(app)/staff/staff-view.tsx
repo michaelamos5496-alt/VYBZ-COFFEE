@@ -114,6 +114,7 @@ export function StaffView({
                     <Button
                       variant="ghost"
                       size="icon-sm"
+                      className="size-9 sm:size-7"
                       onClick={() => openEdit(member)}
                       aria-label={`Edit ${member.name}`}
                     >

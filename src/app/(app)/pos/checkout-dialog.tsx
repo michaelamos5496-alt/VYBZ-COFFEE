@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useRef, useState } from "react"
 import { Loader2 } from "lucide-react"
 import { toast } from "sonner"
 
@@ -63,6 +63,11 @@ export function CheckoutDialog({
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [result, setResult] = useState<CheckoutResult | null>(null)
   const [completedAt, setCompletedAt] = useState<string>("")
+  // One key per checkout attempt (this dialog instance) — stable across
+  // retries of the same attempt, so a double-click or a retried request
+  // replays the same order instead of creating a duplicate.
+  const [idempotencyKey] = useState(() => crypto.randomUUID())
+  const isSubmittingRef = useRef(false)
 
   const amountReceived = parseFloat(amountReceivedInput || "0") || 0
   const change = calculateChange(amountReceived, totals.total)
@@ -73,6 +78,11 @@ export function CheckoutDialog({
   }
 
   async function handleConfirm() {
+    // Belt-and-suspenders against a double-click outrunning the
+    // `disabled` prop's next render — the real guarantee is the
+    // idempotency key, this just avoids firing a second request at all.
+    if (isSubmittingRef.current) return
+    isSubmittingRef.current = true
     setIsSubmitting(true)
 
     const response = await checkoutOrder({
@@ -80,8 +90,10 @@ export function CheckoutDialog({
       discount,
       paymentMethod: method,
       amountReceived: method === "cash" ? amountReceived : null,
+      idempotencyKey,
     })
 
+    isSubmittingRef.current = false
     setIsSubmitting(false)
 
     if (response.error || !response.result) {

@@ -83,6 +83,7 @@ export function CategoriesManager({ categories }: { categories: Category[] }) {
                 <Button
                   variant="ghost"
                   size="icon-xs"
+                  className="size-8 sm:size-6"
                   disabled={isPending || index === 0}
                   onClick={() => handleReorder(category, "up")}
                 >
@@ -91,6 +92,7 @@ export function CategoriesManager({ categories }: { categories: Category[] }) {
                 <Button
                   variant="ghost"
                   size="icon-xs"
+                  className="size-8 sm:size-6"
                   disabled={isPending || index === categories.length - 1}
                   onClick={() => handleReorder(category, "down")}
                 >
@@ -98,10 +100,10 @@ export function CategoriesManager({ categories }: { categories: Category[] }) {
                 </Button>
               </div>
 
-              <div className="flex-1">
-                <p className="font-medium">{category.name}</p>
+              <div className="min-w-0 flex-1">
+                <p className="truncate font-medium">{category.name}</p>
                 {category.description ? (
-                  <p className="text-muted-foreground text-sm">
+                  <p className="text-muted-foreground truncate text-sm">
                     {category.description}
                   </p>
                 ) : null}
@@ -110,13 +112,14 @@ export function CategoriesManager({ categories }: { categories: Category[] }) {
               <Button
                 variant="ghost"
                 size="icon-sm"
+                className="size-9 sm:size-7"
                 onClick={() => openEdit(category)}
               >
                 <Pencil />
               </Button>
 
               <div className="flex items-center gap-2">
-                <span className="text-muted-foreground text-sm">
+                <span className="text-muted-foreground hidden text-sm sm:inline">
                   {category.active ? "Active" : "Inactive"}
                 </span>
                 <Switch

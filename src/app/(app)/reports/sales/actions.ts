@@ -1,6 +1,7 @@
 "use server"
 
 import { createClient } from "@/lib/supabase/server"
+import { toFriendlyError } from "@/lib/errors"
 import type { SalesReportFilters } from "./types"
 
 // A report export should cover everything matching the filter, not just
@@ -26,7 +27,7 @@ export async function exportSalesReport(
     p_offset: 0,
   })
 
-  if (error) return { error: error.message, rows: [] }
+  if (error) return { error: toFriendlyError(error), rows: [] }
 
   return { error: null, rows: data ?? [] }
 }

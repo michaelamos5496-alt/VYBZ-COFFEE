@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache"
 
 import { createClient } from "@/lib/supabase/server"
+import { toFriendlyError } from "@/lib/errors"
 import type { InventoryUnit } from "@/types/database"
 
 export type InventoryItemInput = {
@@ -13,47 +14,25 @@ export type InventoryItemInput = {
   cost_per_unit: number
 }
 
-async function getCurrentStaffId(
-  supabase: Awaited<ReturnType<typeof createClient>>
-) {
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-  return user?.id ?? null
-}
-
 export async function createInventoryItem(
   input: InventoryItemInput,
   openingQuantity: number
 ) {
   const supabase = await createClient()
 
-  const { data: item, error } = await supabase
-    .from("inventory_items")
-    .insert({ ...input, current_quantity: 0 })
-    .select("id")
-    .single()
-
-  if (error || !item) {
-    return { error: error?.message ?? "Could not create inventory item" }
-  }
-
-  if (openingQuantity > 0) {
-    const createdBy = await getCurrentStaffId(supabase)
-    const { error: movementError } = await supabase
-      .from("stock_movements")
-      .insert({
-        inventory_item_id: item.id,
-        movement_type: "opening_stock",
-        quantity: openingQuantity,
-        note: "Opening stock",
-        created_by: createdBy,
-      })
-
-    if (movementError) {
-      return { error: movementError.message }
+  const { error } = await supabase.rpc(
+    "create_inventory_item_with_opening_stock",
+    {
+      p_name: input.name,
+      p_sku: input.sku,
+      p_unit: input.unit,
+      p_minimum_quantity: input.minimum_quantity,
+      p_cost_per_unit: input.cost_per_unit,
+      p_opening_quantity: openingQuantity,
     }
-  }
+  )
+
+  if (error) return { error: toFriendlyError(error) }
 
   revalidatePath("/inventory")
   return { error: null }
@@ -66,7 +45,7 @@ export async function updateInventoryItem(id: string, input: InventoryItemInput)
     .update(input)
     .eq("id", id)
 
-  if (error) return { error: error.message }
+  if (error) return { error: toFriendlyError(error) }
 
   revalidatePath("/inventory")
   return { error: null }
@@ -79,7 +58,7 @@ export async function setInventoryItemActive(id: string, active: boolean) {
     .update({ active })
     .eq("id", id)
 
-  if (error) return { error: error.message }
+  if (error) return { error: toFriendlyError(error) }
 
   revalidatePath("/inventory")
   return { error: null }
@@ -98,26 +77,15 @@ export async function receiveStock(input: ReceiveStockInput) {
   }
 
   const supabase = await createClient()
-  const createdBy = await getCurrentStaffId(supabase)
 
-  const { error } = await supabase.from("stock_movements").insert({
-    inventory_item_id: input.inventory_item_id,
-    movement_type: "purchase",
-    quantity: input.quantity,
-    note: input.note,
-    created_by: createdBy,
+  const { error } = await supabase.rpc("receive_stock", {
+    p_inventory_item_id: input.inventory_item_id,
+    p_quantity: input.quantity,
+    p_cost_per_unit: input.cost_per_unit,
+    p_note: input.note,
   })
 
-  if (error) return { error: error.message }
-
-  if (input.cost_per_unit !== null) {
-    const { error: costError } = await supabase
-      .from("inventory_items")
-      .update({ cost_per_unit: input.cost_per_unit })
-      .eq("id", input.inventory_item_id)
-
-    if (costError) return { error: costError.message }
-  }
+  if (error) return { error: toFriendlyError(error) }
 
   revalidatePath("/inventory")
   return { error: null }
@@ -151,47 +119,19 @@ export async function adjustStock(input: AdjustStockInput) {
   }
 
   const supabase = await createClient()
+  const movementType =
+    input.reason === "damaged" || input.reason === "waste" ? "waste" : "adjustment"
+  const note = `${REASON_LABELS[input.reason]}: ${input.note.trim()}`
 
-  let quantity: number
-
-  if (input.mode === "set") {
-    const { data: item, error: fetchError } = await supabase
-      .from("inventory_items")
-      .select("current_quantity")
-      .eq("id", input.inventory_item_id)
-      .single()
-
-    if (fetchError || !item) {
-      return { error: fetchError?.message ?? "Inventory item not found" }
-    }
-
-    quantity = input.target_quantity - Number(item.current_quantity)
-
-    if (quantity === 0) {
-      return { error: "New quantity matches the current quantity" }
-    }
-  } else {
-    if (input.amount <= 0) {
-      return { error: "Quantity must be greater than zero" }
-    }
-    quantity = -input.amount
-  }
-
-  const movementType = input.reason === "damaged" || input.reason === "waste"
-    ? "waste"
-    : "adjustment"
-
-  const createdBy = await getCurrentStaffId(supabase)
-
-  const { error } = await supabase.from("stock_movements").insert({
-    inventory_item_id: input.inventory_item_id,
-    movement_type: movementType,
-    quantity,
-    note: `${REASON_LABELS[input.reason]}: ${input.note.trim()}`,
-    created_by: createdBy,
+  const { error } = await supabase.rpc("adjust_stock", {
+    p_inventory_item_id: input.inventory_item_id,
+    p_movement_type: movementType,
+    p_mode: input.mode,
+    p_value: input.mode === "set" ? input.target_quantity : input.amount,
+    p_note: note,
   })
 
-  if (error) return { error: error.message }
+  if (error) return { error: toFriendlyError(error) }
 
   revalidatePath("/inventory")
   return { error: null }

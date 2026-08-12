@@ -1,6 +1,7 @@
 "use server"
 
 import { createClient } from "@/lib/supabase/server"
+import { toFriendlyError } from "@/lib/errors"
 import { getDateRange, type ReportPeriod } from "@/lib/reports/date-ranges"
 import type { BarChartPoint } from "@/components/charts/bar-chart"
 
@@ -22,7 +23,7 @@ export async function getSalesChartData(
 
   if (period === "today") {
     const { data, error } = await supabase.rpc("sales_by_hour_today")
-    if (error) return { error: error.message, data: [] }
+    if (error) return { error: toFriendlyError(error), data: [] }
 
     return {
       error: null,
@@ -89,6 +90,6 @@ export async function getDashboardData() {
     lowStockItems: lowStockRows ?? [],
     errors: [statsError, paymentError, topProductsError, lowStockError]
       .filter((error) => error !== null)
-      .map((error) => error.message),
+      .map((error) => toFriendlyError(error)),
   }
 }

@@ -35,7 +35,8 @@ import {
   FormMessage,
 } from "@/components/ui/form"
 import { createClient } from "@/lib/supabase/client"
-import type { BusinessSettings } from "@/types/database"
+import { toFriendlyError } from "@/lib/errors"
+import type { BusinessSettings, ReceiptPaperWidth } from "@/types/database"
 
 const CURRENCIES = ["GHS", "USD", "EUR", "GBP", "NGN"]
 const PAYMENT_METHOD_OPTIONS = [
@@ -43,6 +44,7 @@ const PAYMENT_METHOD_OPTIONS = [
   { value: "card", label: "Card" },
   { value: "mobile_money", label: "Mobile Money" },
 ]
+const PAPER_WIDTHS: ReceiptPaperWidth[] = ["80mm", "58mm"]
 
 const settingsSchema = z.object({
   business_name: z.string().min(1, "Business name is required"),
@@ -52,6 +54,7 @@ const settingsSchema = z.object({
   address: z.string().optional(),
   currency: z.string().min(1),
   receipt_footer: z.string().optional(),
+  receipt_paper_width: z.enum(PAPER_WIDTHS as [ReceiptPaperWidth, ...ReceiptPaperWidth[]]),
   tax_rate: z.number().min(0).max(100),
   tax_inclusive: z.boolean(),
   payment_methods: z.array(z.string()).min(1, "Select at least one payment method"),
@@ -72,6 +75,7 @@ export function SettingsForm({ settings }: { settings: BusinessSettings }) {
       address: settings.address ?? "",
       currency: settings.currency,
       receipt_footer: settings.receipt_footer ?? "",
+      receipt_paper_width: settings.receipt_paper_width,
       tax_rate: settings.tax_rate,
       tax_inclusive: settings.tax_inclusive,
       payment_methods: settings.payment_methods,
@@ -91,6 +95,7 @@ export function SettingsForm({ settings }: { settings: BusinessSettings }) {
         address: values.address || null,
         currency: values.currency,
         receipt_footer: values.receipt_footer || null,
+        receipt_paper_width: values.receipt_paper_width,
         tax_rate: values.tax_rate,
         tax_inclusive: values.tax_inclusive,
         payment_methods: values.payment_methods,
@@ -99,7 +104,7 @@ export function SettingsForm({ settings }: { settings: BusinessSettings }) {
     setIsSaving(false)
 
     if (error) {
-      toast.error("Could not save settings", { description: error.message })
+      toast.error("Could not save settings", { description: toFriendlyError(error) })
       return
     }
 
@@ -271,6 +276,31 @@ export function SettingsForm({ settings }: { settings: BusinessSettings }) {
                       onCheckedChange={field.onChange}
                     />
                   </FormControl>
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="receipt_paper_width"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Receipt Printer Width</FormLabel>
+                  <Select value={field.value} onValueChange={field.onChange}>
+                    <FormControl>
+                      <SelectTrigger className="w-full">
+                        <SelectValue />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {PAPER_WIDTHS.map((width) => (
+                        <SelectItem key={width} value={width}>
+                          {width} thermal
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormDescription>Matches your receipt printer&apos;s paper roll.</FormDescription>
+                  <FormMessage />
                 </FormItem>
               )}
             />

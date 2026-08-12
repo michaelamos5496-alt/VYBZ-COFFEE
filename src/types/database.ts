@@ -112,6 +112,7 @@ export type Order = {
   created_at: string
   updated_at: string
   completed_at: string | null
+  idempotency_key: string | null
 }
 
 export type OrderItem = {
@@ -123,6 +124,8 @@ export type OrderItem = {
   unit_price: number
   line_total: number
 }
+
+export type ReceiptPaperWidth = "58mm" | "80mm"
 
 export type BusinessSettings = {
   id: string
@@ -136,6 +139,7 @@ export type BusinessSettings = {
   tax_rate: number
   tax_inclusive: boolean
   payment_methods: string[]
+  receipt_paper_width: ReceiptPaperWidth
   created_at: string
   updated_at: string
 }
@@ -410,8 +414,39 @@ export type Database = {
           p_discount: number
           p_payment_method: PaymentMethod
           p_amount_received: number | null
+          p_idempotency_key: string | null
         }
         Returns: CheckoutResult[]
+      }
+      create_inventory_item_with_opening_stock: {
+        Args: {
+          p_name: string
+          p_sku: string | null
+          p_unit: InventoryUnit
+          p_minimum_quantity: number
+          p_cost_per_unit: number
+          p_opening_quantity: number
+        }
+        Returns: string
+      }
+      receive_stock: {
+        Args: {
+          p_inventory_item_id: string
+          p_quantity: number
+          p_cost_per_unit: number | null
+          p_note: string | null
+        }
+        Returns: undefined
+      }
+      adjust_stock: {
+        Args: {
+          p_inventory_item_id: string
+          p_movement_type: StockMovementType
+          p_mode: "set" | "delta"
+          p_value: number
+          p_note: string | null
+        }
+        Returns: undefined
       }
       dashboard_stats: {
         Args: { p_start: string; p_end: string }

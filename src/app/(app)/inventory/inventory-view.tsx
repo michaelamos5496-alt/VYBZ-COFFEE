@@ -218,7 +218,13 @@ export function InventoryView({
                         <TableCell>
                           <DropdownMenu>
                             <DropdownMenuTrigger
-                              render={<Button variant="ghost" size="icon-sm" />}
+                              render={
+                                <Button
+                                  variant="ghost"
+                                  size="icon-sm"
+                                  className="size-9 sm:size-7"
+                                />
+                              }
                             >
                               <MoreHorizontal />
                             </DropdownMenuTrigger>

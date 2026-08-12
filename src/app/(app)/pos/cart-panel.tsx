@@ -8,6 +8,14 @@ import { Separator } from "@/components/ui/separator"
 import type { CartItem } from "@/lib/pos/cart"
 import type { OrderTotals } from "@/lib/pos/order-totals"
 
+function Kbd({ children }: { children: React.ReactNode }) {
+  return (
+    <kbd className="ml-auto hidden rounded border border-current/25 px-1.5 py-0.5 text-[10px] font-normal opacity-60 lg:inline-block">
+      {children}
+    </kbd>
+  )
+}
+
 export function CartPanel({
   cart,
   totals,
@@ -145,6 +153,7 @@ export function CartPanel({
             onClick={onCheckout}
           >
             Checkout
+            <Kbd>C</Kbd>
           </Button>
           <div className="grid grid-cols-2 gap-2">
             <Button
@@ -153,6 +162,7 @@ export function CartPanel({
               onClick={onHold}
             >
               Hold Order
+              <Kbd>H</Kbd>
             </Button>
             <Button
               variant="outline"
@@ -161,6 +171,7 @@ export function CartPanel({
             >
               <Trash2 />
               Cancel
+              <Kbd>Del</Kbd>
             </Button>
           </div>
         </div>
