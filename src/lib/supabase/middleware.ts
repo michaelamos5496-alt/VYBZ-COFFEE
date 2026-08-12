@@ -1,10 +1,26 @@
 import { createServerClient } from "@supabase/ssr"
 import { NextResponse, type NextRequest } from "next/server"
+import { createPreviewMockClient, isPreviewMode } from "./preview-mock-client"
 
 const PUBLIC_PATHS = ["/login", "/auth/callback"]
 
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request })
+
+  if (isPreviewMode()) {
+    const supabase = createPreviewMockClient()
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+
+    if (user && request.nextUrl.pathname === "/login") {
+      const url = request.nextUrl.clone()
+      url.pathname = "/dashboard"
+      return NextResponse.redirect(url)
+    }
+
+    return supabaseResponse
+  }
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
