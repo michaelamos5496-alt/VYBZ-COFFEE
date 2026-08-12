@@ -92,6 +92,38 @@ export type StockMovement = {
   created_at: string
 }
 
+export type OrderStatus = "held" | "completed"
+export type OrderPaymentStatus = "pending" | "paid" | "failed"
+export type PaymentMethod = "cash" | "card" | "mobile_money"
+
+export type Order = {
+  id: string
+  order_number: number | null
+  subtotal: number
+  discount: number
+  tax: number
+  total: number
+  payment_method: PaymentMethod | null
+  payment_status: OrderPaymentStatus
+  amount_received: number | null
+  change_due: number | null
+  status: OrderStatus
+  cashier_id: string | null
+  created_at: string
+  updated_at: string
+  completed_at: string | null
+}
+
+export type OrderItem = {
+  id: string
+  order_id: string
+  product_id: string
+  product_name: string
+  quantity: number
+  unit_price: number
+  line_total: number
+}
+
 export type BusinessSettings = {
   id: string
   business_name: string
@@ -117,6 +149,13 @@ export type SaveRecipeItemInput = {
 export type ProcessSaleItemInput = {
   product_id: string
   quantity: number
+}
+
+export type CheckoutResult = {
+  order_id: string
+  order_number: number
+  total: number
+  change_due: number
 }
 
 export type Database = {
@@ -225,6 +264,48 @@ export type Database = {
         Update: Partial<BusinessSettings>
         Relationships: []
       }
+      orders: {
+        Row: Order
+        Insert: Partial<Order>
+        Update: Partial<Order>
+        Relationships: [
+          {
+            foreignKeyName: "orders_cashier_id_fkey"
+            columns: ["cashier_id"]
+            isOneToOne: false
+            referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      order_items: {
+        Row: OrderItem
+        Insert: Partial<OrderItem> & {
+          order_id: string
+          product_id: string
+          product_name: string
+          quantity: number
+          unit_price: number
+          line_total: number
+        }
+        Update: Partial<OrderItem>
+        Relationships: [
+          {
+            foreignKeyName: "order_items_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: Record<string, never>
     Functions: {
@@ -240,11 +321,28 @@ export type Database = {
         }
         Returns: undefined
       }
+      hold_order: {
+        Args: { p_items: ProcessSaleItemInput[]; p_cashier_id: string | null }
+        Returns: string
+      }
+      checkout_order: {
+        Args: {
+          p_items: ProcessSaleItemInput[]
+          p_discount: number
+          p_payment_method: PaymentMethod
+          p_amount_received: number | null
+          p_cashier_id: string | null
+        }
+        Returns: CheckoutResult[]
+      }
     }
     Enums: {
       staff_role: StaffRole
       inventory_unit: InventoryUnit
       stock_movement_type: StockMovementType
+      order_status: OrderStatus
+      order_payment_status: OrderPaymentStatus
+      order_payment_method: PaymentMethod
     }
     CompositeTypes: Record<string, never>
   }

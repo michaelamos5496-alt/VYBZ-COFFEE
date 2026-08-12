@@ -14,10 +14,38 @@ const PREVIEW_USER = {
   email: "preview@marvincoffee.local",
 }
 
-const EMPTY_RESULT = { data: [], error: null, count: 0 }
 const NOT_AVAILABLE_RESULT = {
   data: null,
   error: { message: "Not available in local preview — connect a Supabase project to save changes." },
+}
+
+const now = new Date().toISOString()
+
+// A small set of realistic sample rows so the local preview can actually
+// be clicked through (add to cart, checkout, etc.), not just show empty
+// states. Purely additive and read-only — writes still resolve
+// NOT_AVAILABLE_RESULT, so nothing here is ever persisted.
+const LIST_DEFAULTS: Record<string, Record<string, unknown>[]> = {
+  categories: [
+    { id: "preview-cat-coffee", name: "Coffee", description: null, active: true, sort_order: 0, created_at: now, updated_at: now },
+    { id: "preview-cat-tea", name: "Tea", description: null, active: true, sort_order: 1, created_at: now, updated_at: now },
+    { id: "preview-cat-pastries", name: "Pastries", description: null, active: true, sort_order: 2, created_at: now, updated_at: now },
+  ],
+  products: [
+    { id: "preview-prod-cappuccino", category_id: "preview-cat-coffee", name: "Cappuccino", description: null, sku: null, selling_price: 35, image_url: null, active: true, created_at: now, updated_at: now },
+    { id: "preview-prod-latte", category_id: "preview-cat-coffee", name: "Latte", description: null, sku: null, selling_price: 38, image_url: null, active: true, created_at: now, updated_at: now },
+    { id: "preview-prod-americano", category_id: "preview-cat-coffee", name: "Americano", description: null, sku: null, selling_price: 28, image_url: null, active: true, created_at: now, updated_at: now },
+    { id: "preview-prod-green-tea", category_id: "preview-cat-tea", name: "Green Tea", description: null, sku: null, selling_price: 18, image_url: null, active: true, created_at: now, updated_at: now },
+    { id: "preview-prod-croissant", category_id: "preview-cat-pastries", name: "Croissant", description: null, sku: null, selling_price: 22, image_url: null, active: true, created_at: now, updated_at: now },
+  ],
+  inventory_items: [
+    { id: "preview-item-beans", name: "Coffee Beans", sku: null, unit: "kg", current_quantity: 5, minimum_quantity: 1, cost_per_unit: 85, active: true, created_at: now, updated_at: now },
+    { id: "preview-item-milk", name: "Milk", sku: null, unit: "litre", current_quantity: 12, minimum_quantity: 3, cost_per_unit: 12, active: true, created_at: now, updated_at: now },
+  ],
+}
+
+function emptyResultFor(table: string) {
+  return { data: LIST_DEFAULTS[table] ?? [], error: null, count: (LIST_DEFAULTS[table] ?? []).length }
 }
 
 const SINGLE_ROW_DEFAULTS: Record<string, Record<string, unknown>> = {
@@ -43,7 +71,7 @@ function isSingleTerminal(prop: string) {
 }
 
 function createQueryBuilder(table: string, isWrite: boolean): unknown {
-  const resolved = isWrite ? NOT_AVAILABLE_RESULT : EMPTY_RESULT
+  const resolved = isWrite ? NOT_AVAILABLE_RESULT : emptyResultFor(table)
 
   const target = () => {}
   const handler: ProxyHandler<typeof target> = {

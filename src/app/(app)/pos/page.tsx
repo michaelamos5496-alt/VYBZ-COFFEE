@@ -1,19 +1,49 @@
-import { ShoppingCart } from "lucide-react"
+import { createClient } from "@/lib/supabase/server"
+import { PosView } from "./pos-view"
+import type { HeldOrderSummary } from "./types"
 
-import { AppHeader } from "@/components/layout/app-header"
-import { EmptyState } from "@/components/layout/empty-state"
+export default async function PosPage() {
+  const supabase = await createClient()
 
-export default function PosPage() {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  const [
+    { data: categories },
+    { data: products },
+    { data: settings },
+    { data: heldOrdersData },
+    { data: staff },
+  ] = await Promise.all([
+    supabase
+      .from("categories")
+      .select("*")
+      .eq("active", true)
+      .order("sort_order"),
+    supabase.from("products").select("*").eq("active", true).order("name"),
+    supabase.from("business_settings").select("*").limit(1).single(),
+    supabase
+      .from("orders")
+      .select(
+        "id, subtotal, total, created_at, order_items(id, product_id, product_name, quantity, unit_price)"
+      )
+      .eq("status", "held")
+      .order("created_at", { ascending: false }),
+    user
+      ? supabase.from("staff").select("name").eq("id", user.id).single()
+      : Promise.resolve({ data: null }),
+  ])
+
+  const heldOrders = heldOrdersData as unknown as HeldOrderSummary[] | null
+
   return (
-    <div className="flex flex-1 flex-col">
-      <AppHeader title="New Sale" />
-      <div className="flex flex-1 flex-col gap-4 p-4 md:p-6">
-        <EmptyState
-          icon={ShoppingCart}
-          title="POS is coming soon"
-          description="The checkout screen will let cashiers ring up orders and take payment. It's being built in the next phase."
-        />
-      </div>
-    </div>
+    <PosView
+      categories={categories ?? []}
+      products={products ?? []}
+      settings={settings ?? null}
+      heldOrders={heldOrders ?? []}
+      cashierName={staff?.name ?? user?.email ?? "Cashier"}
+    />
   )
 }
