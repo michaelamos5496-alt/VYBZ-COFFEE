@@ -11,7 +11,7 @@ import type { Database } from "@/types/database"
 
 const PREVIEW_USER = {
   id: "00000000-0000-0000-0000-000000000000",
-  email: "preview@marvincoffee.local",
+  email: "preview@vybz.local",
 }
 
 // Lets a local preview be clicked through as each role without a real
@@ -228,7 +228,7 @@ const SINGLE_ROW_DEFAULTS: Record<string, Record<string, unknown>> = {
   staff: PREVIEW_STAFF_ROW,
   business_settings: {
     id: "00000000-0000-0000-0000-000000000001",
-    business_name: "Marvin Coffee Spot",
+    business_name: "Vybz",
     logo_url: null,
     phone: null,
     email: null,

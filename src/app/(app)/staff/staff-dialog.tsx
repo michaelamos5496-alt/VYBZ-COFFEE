@@ -248,7 +248,7 @@ export function StaffDialog({
                     <FormControl>
                       <Input
                         type="email"
-                        placeholder="ama@marvincoffee.com"
+                        placeholder="ama@vybz.com"
                         {...field}
                       />
                     </FormControl>

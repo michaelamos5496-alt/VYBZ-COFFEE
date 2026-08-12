@@ -9,7 +9,7 @@ export default function LoginPage() {
         <div className="bg-primary text-primary-foreground flex size-9 items-center justify-center rounded-lg">
           <Coffee className="size-5" />
         </div>
-        <span className="text-lg font-semibold">Marvin Coffee Spot</span>
+        <span className="text-lg font-semibold">Vybz</span>
       </div>
       <LoginForm />
     </div>

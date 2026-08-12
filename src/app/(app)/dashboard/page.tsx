@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation"
-import { AlertTriangle, DollarSign, Receipt, TrendingUp } from "lucide-react"
+import Link from "next/link"
+import { AlertTriangle, ChevronRight, DollarSign, Receipt, TrendingUp } from "lucide-react"
 
 import { AppHeader } from "@/components/layout/app-header"
 import {
@@ -54,6 +55,7 @@ export default async function DashboardPage() {
       label: "Low Stock",
       value: `${lowStockItems.length} item${lowStockItems.length === 1 ? "" : "s"}`,
       icon: AlertTriangle,
+      href: "/reports/inventory",
     },
   ]
 
@@ -62,19 +64,34 @@ export default async function DashboardPage() {
       <AppHeader title="Dashboard" />
       <div className="flex flex-1 flex-col gap-6 p-4 md:p-6">
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {summaryCards.map((stat) => (
-            <Card key={stat.label}>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardDescription>{stat.label}</CardDescription>
-                <stat.icon className="text-muted-foreground size-4" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-semibold tracking-tight">
-                  {stat.value}
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+          {summaryCards.map((stat) => {
+            const card = (
+              <Card
+                className={
+                  stat.href
+                    ? "transition-colors hover:border-primary/50 hover:bg-muted/40"
+                    : undefined
+                }
+              >
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardDescription>{stat.label}</CardDescription>
+                  <stat.icon className="text-muted-foreground size-4" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-semibold tracking-tight">
+                    {stat.value}
+                  </div>
+                </CardContent>
+              </Card>
+            )
+            return stat.href ? (
+              <Link key={stat.label} href={stat.href}>
+                {card}
+              </Link>
+            ) : (
+              <div key={stat.label}>{card}</div>
+            )
+          })}
         </div>
 
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
@@ -170,30 +187,36 @@ export default async function DashboardPage() {
                   Everything is well stocked
                 </div>
               ) : (
-                <ul className="flex flex-col gap-3">
+                <ul className="flex flex-col gap-1">
                   {lowStockItems.slice(0, 6).map((item) => (
-                    <li key={item.id} className="flex items-center justify-between">
-                      <p className="text-sm font-medium">{item.name}</p>
-                      <div className="flex items-center gap-2">
-                        <span className="text-muted-foreground text-xs tabular-nums">
-                          {item.current_quantity} / {item.minimum_quantity} {item.unit}
-                        </span>
-                        <Badge
-                          variant={
-                            item.stock_status === "out_of_stock"
-                              ? "destructive"
+                    <li key={item.id}>
+                      <Link
+                        href={`/reports/inventory?status=${item.stock_status}`}
+                        className="hover:bg-muted/60 -mx-2 flex items-center justify-between gap-2 rounded-lg px-2 py-1.5 transition-colors"
+                      >
+                        <p className="text-sm font-medium">{item.name}</p>
+                        <div className="flex items-center gap-2">
+                          <span className="text-muted-foreground text-xs tabular-nums">
+                            {item.current_quantity} / {item.minimum_quantity} {item.unit}
+                          </span>
+                          <Badge
+                            variant={
+                              item.stock_status === "out_of_stock"
+                                ? "destructive"
+                                : item.stock_status === "low_stock"
+                                  ? "outline"
+                                  : "default"
+                            }
+                          >
+                            {item.stock_status === "out_of_stock"
+                              ? "Out of Stock"
                               : item.stock_status === "low_stock"
-                                ? "outline"
-                                : "default"
-                          }
-                        >
-                          {item.stock_status === "out_of_stock"
-                            ? "Out of Stock"
-                            : item.stock_status === "low_stock"
-                              ? "Low Stock"
-                              : "Normal"}
-                        </Badge>
-                      </div>
+                                ? "Low Stock"
+                                : "Normal"}
+                          </Badge>
+                          <ChevronRight className="text-muted-foreground size-4" />
+                        </div>
+                      </Link>
                     </li>
                   ))}
                 </ul>
