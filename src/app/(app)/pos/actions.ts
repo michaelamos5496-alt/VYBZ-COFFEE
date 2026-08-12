@@ -9,22 +9,11 @@ import type {
   ProcessSaleItemInput,
 } from "@/types/database"
 
-async function getCurrentStaffId(
-  supabase: Awaited<ReturnType<typeof createClient>>
-) {
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-  return user?.id ?? null
-}
-
 export async function holdOrder(items: ProcessSaleItemInput[]) {
   const supabase = await createClient()
-  const cashierId = await getCurrentStaffId(supabase)
 
   const { error } = await supabase.rpc("hold_order", {
     p_items: items,
-    p_cashier_id: cashierId,
   })
 
   if (error) return { error: error.message }
@@ -56,14 +45,12 @@ export type CheckoutInput = {
 
 export async function checkoutOrder(input: CheckoutInput) {
   const supabase = await createClient()
-  const cashierId = await getCurrentStaffId(supabase)
 
   const { data, error } = await supabase.rpc("checkout_order", {
     p_items: input.items,
     p_discount: input.discount,
     p_payment_method: input.paymentMethod,
     p_amount_received: input.amountReceived,
-    p_cashier_id: cashierId,
   })
 
   if (error) return { error: error.message, result: null }

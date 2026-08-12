@@ -1,9 +1,18 @@
+import { redirect } from "next/navigation"
+
 import { AppHeader } from "@/components/layout/app-header"
 import { createClient } from "@/lib/supabase/server"
+import { getCurrentStaff } from "@/lib/auth/current-staff"
+import { canManageRecipes } from "@/lib/auth/permissions"
 import { RecipesView } from "./recipes-view"
 import type { RecipeWithItems } from "./types"
 
 export default async function RecipesPage() {
+  const staff = await getCurrentStaff()
+  if (!canManageRecipes(staff?.role ?? null)) {
+    redirect("/pos")
+  }
+
   const supabase = await createClient()
 
   const [{ data: products }, { data: inventoryItems }, { data: recipesData }] =

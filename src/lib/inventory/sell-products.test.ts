@@ -10,20 +10,18 @@ function mockSupabase(rpcResult: { error: { message: string } | null }) {
 }
 
 describe("sellProducts", () => {
-  it("calls the process_sale RPC with the order id, items, and staff id", async () => {
+  it("calls the process_sale RPC with the order id and items", async () => {
     const supabase = mockSupabase({ error: null })
 
     const result = await sellProducts(supabase, {
       orderId: "order-1",
       items: [{ product_id: "product-cappuccino", quantity: 2 }],
-      createdBy: "staff-1",
     })
 
     expect(result.error).toBeNull()
     expect(supabase.rpc).toHaveBeenCalledWith("process_sale", {
       p_order_id: "order-1",
       p_items: [{ product_id: "product-cappuccino", quantity: 2 }],
-      p_created_by: "staff-1",
     })
   })
 
@@ -35,7 +33,6 @@ describe("sellProducts", () => {
     const result = await sellProducts(supabase, {
       orderId: "order-2",
       items: [{ product_id: "product-cappuccino", quantity: 3 }],
-      createdBy: null,
     })
 
     expect(result.error).toMatch(/insufficient stock/i)
@@ -47,7 +44,6 @@ describe("sellProducts", () => {
     const result = await sellProducts(supabase, {
       orderId: "order-3",
       items: [],
-      createdBy: "staff-1",
     })
 
     expect(result.error).toBeNull()

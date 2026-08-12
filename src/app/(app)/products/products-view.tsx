@@ -42,6 +42,8 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { EmptyState } from "@/components/layout/empty-state"
+import { useCurrentRole } from "@/lib/auth/role-context"
+import { canManageProducts } from "@/lib/auth/permissions"
 import type { Category, Product } from "@/types/database"
 import { deleteProduct, setProductActive } from "./actions"
 import { ProductDialog } from "./product-dialog"
@@ -58,6 +60,8 @@ export function ProductsView({
   categories: Category[]
 }) {
   const router = useRouter()
+  const role = useCurrentRole()
+  const canManage = canManageProducts(role)
   const [isPending, startTransition] = useTransition()
   const [search, setSearch] = useState("")
   const [categoryFilter, setCategoryFilter] = useState(ALL_CATEGORIES)
@@ -126,7 +130,7 @@ export function ProductsView({
     <Tabs defaultValue="products" className="flex flex-1 flex-col gap-4">
       <TabsList>
         <TabsTrigger value="products">Products</TabsTrigger>
-        <TabsTrigger value="categories">Categories</TabsTrigger>
+        {canManage && <TabsTrigger value="categories">Categories</TabsTrigger>}
       </TabsList>
 
       <TabsContent value="products" className="flex flex-1 flex-col gap-4">
@@ -159,10 +163,12 @@ export function ProductsView({
               </SelectContent>
             </Select>
           </div>
-          <Button size="sm" onClick={openCreate}>
-            <Plus />
-            New Product
-          </Button>
+          {canManage && (
+            <Button size="sm" onClick={openCreate}>
+              <Plus />
+              New Product
+            </Button>
+          )}
         </div>
 
         {products.length === 0 ? (
@@ -170,8 +176,8 @@ export function ProductsView({
             icon={Package}
             title="No products yet"
             description="Add your first menu item, like a Cappuccino or Iced Latte, to start building your menu."
-            actionLabel="Add Product"
-            onAction={openCreate}
+            actionLabel={canManage ? "Add Product" : undefined}
+            onAction={canManage ? openCreate : undefined}
           />
         ) : filteredProducts.length === 0 ? (
           <EmptyState
@@ -189,7 +195,7 @@ export function ProductsView({
                   <TableHead>SKU</TableHead>
                   <TableHead>Price</TableHead>
                   <TableHead>Status</TableHead>
-                  <TableHead className="w-10" />
+                  {canManage && <TableHead className="w-10" />}
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -209,40 +215,44 @@ export function ProductsView({
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">
-                        <Switch
-                          checked={product.active}
-                          disabled={isPending}
-                          onCheckedChange={(checked) =>
-                            handleToggleActive(product, checked)
-                          }
-                        />
+                        {canManage ? (
+                          <Switch
+                            checked={product.active}
+                            disabled={isPending}
+                            onCheckedChange={(checked) =>
+                              handleToggleActive(product, checked)
+                            }
+                          />
+                        ) : null}
                         <Badge variant={product.active ? "default" : "secondary"}>
                           {product.active ? "Active" : "Inactive"}
                         </Badge>
                       </div>
                     </TableCell>
-                    <TableCell>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger
-                          render={
-                            <Button variant="ghost" size="icon-sm" />
-                          }
-                        >
-                          <MoreHorizontal />
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => openEdit(product)}>
-                            Edit
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            variant="destructive"
-                            onClick={() => setDeletingProduct(product)}
+                    {canManage && (
+                      <TableCell>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger
+                            render={
+                              <Button variant="ghost" size="icon-sm" />
+                            }
                           >
-                            Delete
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </TableCell>
+                            <MoreHorizontal />
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => openEdit(product)}>
+                              Edit
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              variant="destructive"
+                              onClick={() => setDeletingProduct(product)}
+                            >
+                              Delete
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </TableCell>
+                    )}
                   </TableRow>
                 ))}
               </TableBody>

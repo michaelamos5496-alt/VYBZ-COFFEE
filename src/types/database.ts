@@ -209,6 +209,16 @@ export type OrderSearchRow = {
   total_count: number
 }
 
+export type AuditLog = {
+  id: string
+  actor_id: string | null
+  action: string
+  entity_type: string
+  entity_id: string | null
+  details: Record<string, unknown> | null
+  created_at: string
+}
+
 export type Database = {
   public: {
     Tables: {
@@ -357,6 +367,20 @@ export type Database = {
           },
         ]
       }
+      audit_log: {
+        Row: AuditLog
+        Insert: Partial<AuditLog> & { action: string; entity_type: string }
+        Update: Partial<AuditLog>
+        Relationships: [
+          {
+            foreignKeyName: "audit_log_actor_id_fkey"
+            columns: ["actor_id"]
+            isOneToOne: false
+            referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       inventory_report: {
@@ -373,12 +397,11 @@ export type Database = {
         Args: {
           p_order_id: string
           p_items: ProcessSaleItemInput[]
-          p_created_by: string | null
         }
         Returns: undefined
       }
       hold_order: {
-        Args: { p_items: ProcessSaleItemInput[]; p_cashier_id: string | null }
+        Args: { p_items: ProcessSaleItemInput[] }
         Returns: string
       }
       checkout_order: {
@@ -387,7 +410,6 @@ export type Database = {
           p_discount: number
           p_payment_method: PaymentMethod
           p_amount_received: number | null
-          p_cashier_id: string | null
         }
         Returns: CheckoutResult[]
       }

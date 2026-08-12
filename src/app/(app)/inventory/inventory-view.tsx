@@ -33,6 +33,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { EmptyState } from "@/components/layout/empty-state"
+import { useCurrentRole } from "@/lib/auth/role-context"
+import { canManageInventory, canViewStockMovementHistory } from "@/lib/auth/permissions"
 import type { InventoryItem } from "@/types/database"
 import { setInventoryItemActive } from "./actions"
 import { ItemDialog } from "./item-dialog"
@@ -48,6 +50,9 @@ export function InventoryView({
   movements: MovementWithDetails[]
 }) {
   const router = useRouter()
+  const role = useCurrentRole()
+  const canManage = canManageInventory(role)
+  const canViewHistory = canViewStockMovementHistory(role)
   const [isPending, startTransition] = useTransition()
   const [search, setSearch] = useState("")
   const [lowStockOnly, setLowStockOnly] = useState(false)
@@ -110,7 +115,7 @@ export function InventoryView({
     <Tabs defaultValue="inventory" className="flex flex-1 flex-col gap-4">
       <TabsList>
         <TabsTrigger value="inventory">Inventory</TabsTrigger>
-        <TabsTrigger value="history">History</TabsTrigger>
+        {canViewHistory && <TabsTrigger value="history">History</TabsTrigger>}
       </TabsList>
 
       <TabsContent value="inventory" className="flex flex-1 flex-col gap-4">
@@ -136,16 +141,18 @@ export function InventoryView({
               </Label>
             </div>
           </div>
-          <div className="flex gap-2">
-            <Button variant="outline" size="sm" onClick={() => openReceive()}>
-              <TruckIcon />
-              Receive Stock
-            </Button>
-            <Button size="sm" onClick={openCreateItem}>
-              <Plus />
-              New Item
-            </Button>
-          </div>
+          {canManage && (
+            <div className="flex gap-2">
+              <Button variant="outline" size="sm" onClick={() => openReceive()}>
+                <TruckIcon />
+                Receive Stock
+              </Button>
+              <Button size="sm" onClick={openCreateItem}>
+                <Plus />
+                New Item
+              </Button>
+            </div>
+          )}
         </div>
 
         {items.length === 0 ? (
@@ -153,8 +160,8 @@ export function InventoryView({
             icon={Boxes}
             title="No inventory items yet"
             description="Add ingredients like Coffee Beans, Milk, or Cups so you can track stock and build recipes."
-            actionLabel="Add Inventory Item"
-            onAction={openCreateItem}
+            actionLabel={canManage ? "Add Inventory Item" : undefined}
+            onAction={canManage ? openCreateItem : undefined}
           />
         ) : filteredItems.length === 0 ? (
           <EmptyState
@@ -173,7 +180,7 @@ export function InventoryView({
                   <TableHead>Minimum</TableHead>
                   <TableHead>Cost / Unit</TableHead>
                   <TableHead>Status</TableHead>
-                  <TableHead className="w-10" />
+                  {canManage && <TableHead className="w-10" />}
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -207,40 +214,42 @@ export function InventoryView({
                           </Badge>
                         </div>
                       </TableCell>
-                      <TableCell>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger
-                            render={<Button variant="ghost" size="icon-sm" />}
-                          >
-                            <MoreHorizontal />
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem
-                              onClick={() => openReceive(item.id)}
+                      {canManage && (
+                        <TableCell>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger
+                              render={<Button variant="ghost" size="icon-sm" />}
                             >
-                              Receive Stock
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              onClick={() => openAdjust(item.id)}
-                            >
-                              Adjust Stock
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              onClick={() => openEditItem(item)}
-                            >
-                              Edit
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              disabled={isPending}
-                              onClick={() =>
-                                handleToggleActive(item, !item.active)
-                              }
-                            >
-                              {item.active ? "Deactivate" : "Activate"}
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </TableCell>
+                              <MoreHorizontal />
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem
+                                onClick={() => openReceive(item.id)}
+                              >
+                                Receive Stock
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                onClick={() => openAdjust(item.id)}
+                              >
+                                Adjust Stock
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                onClick={() => openEditItem(item)}
+                              >
+                                Edit
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                disabled={isPending}
+                                onClick={() =>
+                                  handleToggleActive(item, !item.active)
+                                }
+                              >
+                                {item.active ? "Deactivate" : "Activate"}
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </TableCell>
+                      )}
                     </TableRow>
                   )
                 })}
@@ -250,9 +259,11 @@ export function InventoryView({
         )}
       </TabsContent>
 
-      <TabsContent value="history">
-        <MovementHistory movements={movements} />
-      </TabsContent>
+      {canViewHistory && (
+        <TabsContent value="history">
+          <MovementHistory movements={movements} />
+        </TabsContent>
+      )}
 
       <ItemDialog
         open={itemDialogOpen}

@@ -48,6 +48,7 @@ export function SalesReportView({
   categories,
   products,
   error,
+  showCashierFilter = true,
 }: {
   orders: OrderSearchRow[]
   totalCount: number
@@ -57,6 +58,7 @@ export function SalesReportView({
   categories: { id: string; name: string }[]
   products: { id: string; name: string }[]
   error: string | null
+  showCashierFilter?: boolean
 }) {
   const router = useRouter()
   const pathname = usePathname()
@@ -150,27 +152,29 @@ export function SalesReportView({
           />
         </div>
 
-        <div className="flex flex-col gap-1.5">
-          <Label>Cashier</Label>
-          <Select
-            value={filters.cashierId ?? ALL}
-            onValueChange={(value) =>
-              updateParams({ cashier: value === ALL ? null : value })
-            }
-          >
-            <SelectTrigger className="w-40">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value={ALL}>All cashiers</SelectItem>
-              {staff.map((member) => (
-                <SelectItem key={member.id} value={member.id}>
-                  {member.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+        {showCashierFilter && (
+          <div className="flex flex-col gap-1.5">
+            <Label>Cashier</Label>
+            <Select
+              value={filters.cashierId ?? ALL}
+              onValueChange={(value) =>
+                updateParams({ cashier: value === ALL ? null : value })
+              }
+            >
+              <SelectTrigger className="w-40">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={ALL}>All cashiers</SelectItem>
+                {staff.map((member) => (
+                  <SelectItem key={member.id} value={member.id}>
+                    {member.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
 
         <div className="flex flex-col gap-1.5">
           <Label>Payment Method</Label>

@@ -1,5 +1,9 @@
+import { redirect } from "next/navigation"
+
 import { AppHeader } from "@/components/layout/app-header"
 import { createClient } from "@/lib/supabase/server"
+import { getCurrentStaff } from "@/lib/auth/current-staff"
+import { canViewReports } from "@/lib/auth/permissions"
 import { getDateRange, type ReportPeriod } from "@/lib/reports/date-ranges"
 import { ProductPerformanceView } from "./product-performance-view"
 
@@ -10,6 +14,11 @@ export default async function ProductPerformancePage({
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>
 }) {
+  const staff = await getCurrentStaff()
+  if (!canViewReports(staff?.role ?? null)) {
+    redirect("/pos")
+  }
+
   const params = await searchParams
   const get = (key: string) => {
     const value = params[key]

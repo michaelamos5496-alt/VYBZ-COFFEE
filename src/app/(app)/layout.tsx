@@ -3,6 +3,8 @@ import { redirect } from "next/navigation"
 import { AppSidebar } from "@/components/layout/app-sidebar"
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
 import { createClient } from "@/lib/supabase/server"
+import { getCurrentStaff } from "@/lib/auth/current-staff"
+import { StaffProvider } from "@/lib/auth/role-context"
 
 export default async function AppLayout({
   children,
@@ -18,10 +20,18 @@ export default async function AppLayout({
     redirect("/login")
   }
 
+  const staff = await getCurrentStaff()
+
+  if (!staff || !staff.active) {
+    redirect("/account-inactive")
+  }
+
   return (
-    <SidebarProvider>
-      <AppSidebar />
-      <SidebarInset>{children}</SidebarInset>
-    </SidebarProvider>
+    <StaffProvider staff={staff}>
+      <SidebarProvider>
+        <AppSidebar />
+        <SidebarInset>{children}</SidebarInset>
+      </SidebarProvider>
+    </StaffProvider>
   )
 }

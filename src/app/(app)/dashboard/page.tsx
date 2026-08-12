@@ -1,3 +1,4 @@
+import { redirect } from "next/navigation"
 import { AlertTriangle, DollarSign, Receipt, TrendingUp } from "lucide-react"
 
 import { AppHeader } from "@/components/layout/app-header"
@@ -9,6 +10,8 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
+import { getCurrentStaff } from "@/lib/auth/current-staff"
+import { canViewReports } from "@/lib/auth/permissions"
 import { getDashboardData, getSalesChartData } from "./actions"
 import { SalesChart } from "./sales-chart"
 
@@ -19,6 +22,11 @@ const PAYMENT_LABELS: Record<string, string> = {
 }
 
 export default async function DashboardPage() {
+  const staff = await getCurrentStaff()
+  if (!canViewReports(staff?.role ?? null)) {
+    redirect("/pos")
+  }
+
   const [dashboard, chart] = await Promise.all([
     getDashboardData(),
     getSalesChartData("7days"),

@@ -14,12 +14,35 @@ const PREVIEW_USER = {
   email: "preview@marvincoffee.local",
 }
 
+// Lets a local preview be clicked through as each role without a real
+// multi-account Supabase project: set NEXT_PUBLIC_PREVIEW_ROLE=admin |
+// manager | cashier. Defaults to admin (the fullest view of the app).
+const PREVIEW_ROLE = (process.env.NEXT_PUBLIC_PREVIEW_ROLE ?? "admin") as
+  | "admin"
+  | "manager"
+  | "cashier"
+
 const NOT_AVAILABLE_RESULT = {
   data: null,
   error: { message: "Not available in local preview — connect a Supabase project to save changes." },
 }
 
+const ACCESS_DENIED_RESULT = {
+  data: null,
+  error: { message: "Access denied" },
+}
+
 const now = new Date().toISOString()
+
+const PREVIEW_STAFF_ROW = {
+  id: PREVIEW_USER.id,
+  name: `Preview ${PREVIEW_ROLE[0].toUpperCase()}${PREVIEW_ROLE.slice(1)}`,
+  email: PREVIEW_USER.email,
+  role: PREVIEW_ROLE,
+  active: true,
+  created_at: now,
+  updated_at: now,
+}
 
 // A small set of realistic sample rows so the local preview can actually
 // be clicked through (add to cart, checkout, etc.), not just show empty
@@ -43,9 +66,7 @@ const LIST_DEFAULTS: Record<string, Record<string, unknown>[]> = {
     { id: "preview-item-milk", name: "Milk", sku: null, unit: "litre", current_quantity: 12, minimum_quantity: 3, cost_per_unit: 12, active: true, created_at: now, updated_at: now },
     { id: "preview-item-cups", name: "Cups", sku: null, unit: "piece", current_quantity: 40, minimum_quantity: 50, cost_per_unit: 0.5, active: true, created_at: now, updated_at: now },
   ],
-  staff: [
-    { id: PREVIEW_USER.id, name: "Preview Cashier", email: PREVIEW_USER.email, role: "cashier", active: true, created_at: now, updated_at: now },
-  ],
+  staff: [PREVIEW_STAFF_ROW],
   inventory_report: [
     { id: "preview-item-beans", name: "Coffee Beans", sku: null, unit: "kg", current_quantity: 5, minimum_quantity: 1, cost_per_unit: 85, active: true, created_at: now, updated_at: now, stock_status: "normal" },
     { id: "preview-item-milk", name: "Milk", sku: null, unit: "litre", current_quantity: 12, minimum_quantity: 3, cost_per_unit: 12, active: true, created_at: now, updated_at: now, stock_status: "normal" },
@@ -77,23 +98,35 @@ function previewSalesByHourToday() {
   })
 }
 
-function previewSearchOrders(limit: number, offset: number) {
+function previewSearchOrders(
+  limit: number,
+  offset: number,
+  role: "admin" | "manager" | "cashier"
+) {
+  // Half the sample orders belong to the preview user, half to a
+  // colleague — lets a cashier's "own sales only" scoping actually show
+  // a visible difference from admin/manager's "everyone" view.
   const all = Array.from({ length: 18 }, (_, i) => {
     const completedAt = new Date()
     completedAt.setUTCHours(completedAt.getUTCHours() - i * 3)
     const method = PREVIEW_PAYMENT_METHODS[i % PREVIEW_PAYMENT_METHODS.length]
+    const isMine = i % 2 === 0
     return {
       id: `preview-order-${i}`,
       order_number: 1000 + i,
       completed_at: completedAt.toISOString(),
-      cashier_name: "Preview Cashier",
+      cashier_name: isMine ? PREVIEW_STAFF_ROW.name : "A. Colleague",
+      cashier_id: isMine ? PREVIEW_USER.id : "preview-other-staff",
       total: 28 + i * 3.5,
       payment_method: method,
       status: "completed",
       payment_status: "paid",
     }
   })
-  return all.slice(offset, offset + limit).map((row) => ({ ...row, total_count: all.length }))
+  const scoped = role === "cashier" ? all.filter((row) => row.cashier_id === PREVIEW_USER.id) : all
+  return scoped
+    .slice(offset, offset + limit)
+    .map((row) => ({ ...row, total_count: scoped.length }))
 }
 
 function previewProductPerformance(limit: number, offset: number) {
@@ -117,6 +150,17 @@ function previewProductPerformance(limit: number, offset: number) {
     .map((row) => ({ ...row, total_count: withShare.length }))
 }
 
+// Mirrors the role guard inside these functions in
+// supabase/migrations/00007_rbac.sql: business-wide report RPCs raise
+// for a cashier; search_orders instead silently scopes to their own id.
+const ADMIN_MANAGER_ONLY_RPCS = new Set([
+  "dashboard_stats",
+  "sales_by_day",
+  "sales_by_hour_today",
+  "payment_breakdown",
+  "product_performance",
+])
+
 const READ_ONLY_RPCS: Record<string, (args: Record<string, unknown>) => unknown[]> = {
   dashboard_stats: () => [
     { total_sales: 452.5, order_count: 12, average_order_value: 37.71 },
@@ -131,7 +175,7 @@ const READ_ONLY_RPCS: Record<string, (args: Record<string, unknown>) => unknown[
   product_performance: (args) =>
     previewProductPerformance(Number(args.p_limit) || 50, Number(args.p_offset) || 0),
   search_orders: (args) =>
-    previewSearchOrders(Number(args.p_limit) || 25, Number(args.p_offset) || 0),
+    previewSearchOrders(Number(args.p_limit) || 25, Number(args.p_offset) || 0, PREVIEW_ROLE),
 }
 
 function emptyResultFor(table: string) {
@@ -139,6 +183,7 @@ function emptyResultFor(table: string) {
 }
 
 const SINGLE_ROW_DEFAULTS: Record<string, Record<string, unknown>> = {
+  staff: PREVIEW_STAFF_ROW,
   business_settings: {
     id: "00000000-0000-0000-0000-000000000001",
     business_name: "Marvin Coffee Spot",
@@ -209,6 +254,11 @@ export function createPreviewMockClient() {
       return createQueryBuilder(table, false)
     },
     rpc(name: string, args: Record<string, unknown> = {}) {
+      if (ADMIN_MANAGER_ONLY_RPCS.has(name) && PREVIEW_ROLE === "cashier") {
+        return {
+          then: (resolve: (value: unknown) => void) => resolve(ACCESS_DENIED_RESULT),
+        }
+      }
       const reader = READ_ONLY_RPCS[name]
       if (!reader) {
         return createQueryBuilder("rpc", true)

@@ -1,8 +1,17 @@
+import { redirect } from "next/navigation"
+
 import { AppHeader } from "@/components/layout/app-header"
 import { createClient } from "@/lib/supabase/server"
+import { getCurrentStaff } from "@/lib/auth/current-staff"
+import { canManageSettings } from "@/lib/auth/permissions"
 import { SettingsForm } from "./settings-form"
 
 export default async function SettingsPage() {
+  const staff = await getCurrentStaff()
+  if (!canManageSettings(staff?.role ?? null)) {
+    redirect("/pos")
+  }
+
   const supabase = await createClient()
   const { data: settings } = await supabase
     .from("business_settings")

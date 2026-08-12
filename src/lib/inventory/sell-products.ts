@@ -5,21 +5,21 @@ import type { Database, ProcessSaleItemInput } from "@/types/database"
 export type SellProductsParams = {
   orderId: string
   items: ProcessSaleItemInput[]
-  createdBy: string | null
 }
 
 export type SellProductsResult = { error: string | null }
 
 /**
- * The reusable inventory deduction service. Call this whenever an order
- * is finalized (the future POS checkout flow) to atomically expand each
- * sold product's recipe and deduct the required ingredients. Backed by
- * the `process_sale` Postgres function, so the deduction either fully
- * applies or fully fails — never partial.
+ * Thin wrapper around the `process_sale` Postgres function. Superseded
+ * in practice by `checkout_order` (Phase 4), which calls process_sale
+ * itself as part of one atomic checkout — kept for any future caller
+ * that needs to deduct inventory for an already-created order outside
+ * that flow. process_sale is SECURITY DEFINER and reads the acting user
+ * from the session itself, so there's no createdBy to pass here.
  */
 export async function sellProducts(
   supabase: SupabaseClient<Database>,
-  { orderId, items, createdBy }: SellProductsParams
+  { orderId, items }: SellProductsParams
 ): Promise<SellProductsResult> {
   if (items.length === 0) {
     return { error: null }
@@ -28,7 +28,6 @@ export async function sellProducts(
   const { error } = await supabase.rpc("process_sale", {
     p_order_id: orderId,
     p_items: items,
-    p_created_by: createdBy,
   })
 
   if (error) {

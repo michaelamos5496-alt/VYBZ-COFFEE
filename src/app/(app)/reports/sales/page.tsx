@@ -1,5 +1,7 @@
 import { AppHeader } from "@/components/layout/app-header"
 import { createClient } from "@/lib/supabase/server"
+import { getCurrentStaff } from "@/lib/auth/current-staff"
+import { canViewReports } from "@/lib/auth/permissions"
 import { getDateRange } from "@/lib/reports/date-ranges"
 import { SalesReportView } from "./sales-report-view"
 import type { SalesReportFilters } from "./types"
@@ -33,6 +35,8 @@ export default async function SalesReportPage({
   const params = await searchParams
   const filters = parseFilters(params)
   const supabase = await createClient()
+  const staffMember = await getCurrentStaff()
+  const isFullReport = canViewReports(staffMember?.role ?? null)
 
   const defaultRange = getDateRange("30days")
   const start = filters.from ? new Date(filters.from) : defaultRange.start
@@ -50,7 +54,9 @@ export default async function SalesReportPage({
         p_limit: PAGE_SIZE,
         p_offset: (filters.page - 1) * PAGE_SIZE,
       }),
-      supabase.from("staff").select("id, name").order("name"),
+      isFullReport
+        ? supabase.from("staff").select("id, name").order("name")
+        : Promise.resolve({ data: [] }),
       supabase.from("categories").select("id, name").order("sort_order"),
       supabase.from("products").select("id, name").order("name"),
     ])
@@ -59,7 +65,7 @@ export default async function SalesReportPage({
 
   return (
     <div className="flex flex-1 flex-col">
-      <AppHeader title="Sales Report" />
+      <AppHeader title={isFullReport ? "Sales Report" : "My Sales"} />
       <div className="flex flex-1 flex-col gap-4 p-4 md:p-6">
         <SalesReportView
           orders={orders ?? []}
@@ -70,6 +76,7 @@ export default async function SalesReportPage({
           categories={categories ?? []}
           products={products ?? []}
           error={error?.message ?? null}
+          showCashierFilter={isFullReport}
         />
       </div>
     </div>

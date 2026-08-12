@@ -1,5 +1,9 @@
+import { redirect } from "next/navigation"
+
 import { AppHeader } from "@/components/layout/app-header"
 import { createClient } from "@/lib/supabase/server"
+import { getCurrentStaff } from "@/lib/auth/current-staff"
+import { canViewReports } from "@/lib/auth/permissions"
 import type { StockStatus } from "@/types/database"
 import { InventoryReportView } from "./inventory-report-view"
 
@@ -8,6 +12,11 @@ export default async function InventoryReportPage({
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>
 }) {
+  const staff = await getCurrentStaff()
+  if (!canViewReports(staff?.role ?? null)) {
+    redirect("/pos")
+  }
+
   const params = await searchParams
   const statusParam = params.status
   const status = (Array.isArray(statusParam) ? statusParam[0] : statusParam) as

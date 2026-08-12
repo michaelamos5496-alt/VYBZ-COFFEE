@@ -27,39 +27,65 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar"
+import { useCurrentRole } from "@/lib/auth/role-context"
+import {
+  canManageRecipes,
+  canManageSettings,
+  canManageStaff,
+  canViewInventory,
+  canViewProducts,
+  canViewReports,
+} from "@/lib/auth/permissions"
+import type { StaffRole } from "@/types/database"
 
-const posNav = [{ title: "New Sale", url: "/pos", icon: ShoppingCart }]
+type NavItem = {
+  title: string
+  url: string
+  icon: React.ElementType
+  visible: (role: StaffRole | null) => boolean
+}
 
-const managementNav = [
-  { title: "Products", url: "/products", icon: Package },
-  { title: "Inventory", url: "/inventory", icon: Boxes },
-  { title: "Recipes", url: "/recipes", icon: ClipboardList },
-  { title: "Staff", url: "/staff", icon: Users },
+const posNav: NavItem[] = [
+  { title: "New Sale", url: "/pos", icon: ShoppingCart, visible: () => true },
 ]
 
-const reportsNav = [
-  { title: "Sales", url: "/reports/sales", icon: LineChart },
-  { title: "Inventory", url: "/reports/inventory", icon: Warehouse },
-  { title: "Products", url: "/reports/products", icon: TrendingUp },
+const managementNav: NavItem[] = [
+  { title: "Products", url: "/products", icon: Package, visible: canViewProducts },
+  { title: "Inventory", url: "/inventory", icon: Boxes, visible: canViewInventory },
+  { title: "Recipes", url: "/recipes", icon: ClipboardList, visible: canManageRecipes },
+  { title: "Staff", url: "/staff", icon: Users, visible: canManageStaff },
 ]
 
-const systemNav = [{ title: "Settings", url: "/settings", icon: Settings }]
+const reportsNav: NavItem[] = [
+  { title: "Sales", url: "/reports/sales", icon: LineChart, visible: () => true },
+  { title: "Inventory", url: "/reports/inventory", icon: Warehouse, visible: canViewReports },
+  { title: "Products", url: "/reports/products", icon: TrendingUp, visible: canViewReports },
+]
+
+const systemNav: NavItem[] = [
+  { title: "Settings", url: "/settings", icon: Settings, visible: canManageSettings },
+]
 
 function NavGroup({
   label,
   items,
   pathname,
+  role,
 }: {
   label: string
-  items: { title: string; url: string; icon: React.ElementType }[]
+  items: NavItem[]
   pathname: string
+  role: StaffRole | null
 }) {
+  const visibleItems = items.filter((item) => item.visible(role))
+  if (visibleItems.length === 0) return null
+
   return (
     <SidebarGroup>
       <SidebarGroupLabel>{label}</SidebarGroupLabel>
       <SidebarGroupContent>
         <SidebarMenu>
-          {items.map((item) => {
+          {visibleItems.map((item) => {
             const isActive =
               pathname === item.url || pathname.startsWith(`${item.url}/`)
             return (
@@ -83,13 +109,15 @@ function NavGroup({
 
 export function AppSidebar() {
   const pathname = usePathname()
+  const role = useCurrentRole()
+  const homeUrl = canViewReports(role) ? "/dashboard" : "/pos"
 
   return (
     <Sidebar collapsible="icon">
       <SidebarHeader>
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton size="lg" render={<Link href="/dashboard" />}>
+            <SidebarMenuButton size="lg" render={<Link href={homeUrl} />}>
               <div className="bg-sidebar-primary text-sidebar-primary-foreground flex aspect-square size-8 items-center justify-center rounded-lg">
                 <Coffee className="size-4" />
               </div>
@@ -106,14 +134,25 @@ export function AppSidebar() {
         </SidebarMenu>
       </SidebarHeader>
       <SidebarContent>
-        <NavGroup label="POS" items={posNav} pathname={pathname} />
+        <NavGroup label="POS" items={posNav} pathname={pathname} role={role} />
         <NavGroup
           label="Management"
           items={managementNav}
           pathname={pathname}
+          role={role}
         />
-        <NavGroup label="Reports" items={reportsNav} pathname={pathname} />
-        <NavGroup label="System" items={systemNav} pathname={pathname} />
+        <NavGroup
+          label="Reports"
+          items={reportsNav}
+          pathname={pathname}
+          role={role}
+        />
+        <NavGroup
+          label="System"
+          items={systemNav}
+          pathname={pathname}
+          role={role}
+        />
       </SidebarContent>
       <SidebarFooter />
     </Sidebar>
