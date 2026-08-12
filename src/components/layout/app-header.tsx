@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { createClient } from "@/lib/supabase/client"
+import { ThemeToggle } from "@/components/layout/theme-toggle"
 
 export function AppHeader({ title }: { title: string }) {
   const router = useRouter()
@@ -44,6 +45,7 @@ export function AppHeader({ title }: { title: string }) {
       <Separator orientation="vertical" className="h-6" />
       <h1 className="text-lg font-semibold tracking-tight">{title}</h1>
       <div className="ml-auto flex items-center gap-2">
+        <ThemeToggle />
         <DropdownMenu>
           <DropdownMenuTrigger
             render={
