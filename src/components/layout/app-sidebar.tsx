@@ -11,6 +11,7 @@ import {
   Users,
   LineChart,
   Warehouse,
+  TrendingUp,
   Settings,
 } from "lucide-react"
 
@@ -39,6 +40,7 @@ const managementNav = [
 const reportsNav = [
   { title: "Sales", url: "/reports/sales", icon: LineChart },
   { title: "Inventory", url: "/reports/inventory", icon: Warehouse },
+  { title: "Products", url: "/reports/products", icon: TrendingUp },
 ]
 
 const systemNav = [{ title: "Settings", url: "/settings", icon: Settings }]

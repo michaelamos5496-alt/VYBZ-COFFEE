@@ -158,6 +158,57 @@ export type CheckoutResult = {
   change_due: number
 }
 
+export type StockStatus = "out_of_stock" | "low_stock" | "normal"
+
+export type InventoryReportRow = InventoryItem & {
+  stock_status: StockStatus
+}
+
+export type DashboardStats = {
+  total_sales: number
+  order_count: number
+  average_order_value: number
+}
+
+export type SalesByDayRow = {
+  day: string
+  revenue: number
+  order_count: number
+}
+
+export type SalesByHourRow = {
+  hour: number
+  revenue: number
+  order_count: number
+}
+
+export type PaymentBreakdownRow = {
+  payment_method: PaymentMethod
+  transaction_count: number
+  total_value: number
+}
+
+export type ProductPerformanceRow = {
+  product_id: string
+  product_name: string
+  units_sold: number
+  revenue: number
+  percentage_of_sales: number
+  total_count: number
+}
+
+export type OrderSearchRow = {
+  id: string
+  order_number: number | null
+  completed_at: string | null
+  cashier_name: string | null
+  total: number
+  payment_method: PaymentMethod | null
+  status: OrderStatus
+  payment_status: OrderPaymentStatus
+  total_count: number
+}
+
 export type Database = {
   public: {
     Tables: {
@@ -307,7 +358,12 @@ export type Database = {
         ]
       }
     }
-    Views: Record<string, never>
+    Views: {
+      inventory_report: {
+        Row: InventoryReportRow
+        Relationships: []
+      }
+    }
     Functions: {
       save_recipe: {
         Args: { p_product_id: string; p_items: SaveRecipeItemInput[] }
@@ -334,6 +390,44 @@ export type Database = {
           p_cashier_id: string | null
         }
         Returns: CheckoutResult[]
+      }
+      dashboard_stats: {
+        Args: { p_start: string; p_end: string }
+        Returns: DashboardStats[]
+      }
+      sales_by_day: {
+        Args: { p_days: number }
+        Returns: SalesByDayRow[]
+      }
+      sales_by_hour_today: {
+        Args: Record<string, never>
+        Returns: SalesByHourRow[]
+      }
+      payment_breakdown: {
+        Args: { p_start: string; p_end: string }
+        Returns: PaymentBreakdownRow[]
+      }
+      product_performance: {
+        Args: {
+          p_start: string | null
+          p_end: string | null
+          p_limit: number
+          p_offset: number
+        }
+        Returns: ProductPerformanceRow[]
+      }
+      search_orders: {
+        Args: {
+          p_start: string | null
+          p_end: string | null
+          p_cashier_id: string | null
+          p_payment_method: PaymentMethod | null
+          p_product_id: string | null
+          p_category_id: string | null
+          p_limit: number
+          p_offset: number
+        }
+        Returns: OrderSearchRow[]
       }
     }
     Enums: {

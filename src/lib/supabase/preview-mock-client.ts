@@ -41,7 +41,97 @@ const LIST_DEFAULTS: Record<string, Record<string, unknown>[]> = {
   inventory_items: [
     { id: "preview-item-beans", name: "Coffee Beans", sku: null, unit: "kg", current_quantity: 5, minimum_quantity: 1, cost_per_unit: 85, active: true, created_at: now, updated_at: now },
     { id: "preview-item-milk", name: "Milk", sku: null, unit: "litre", current_quantity: 12, minimum_quantity: 3, cost_per_unit: 12, active: true, created_at: now, updated_at: now },
+    { id: "preview-item-cups", name: "Cups", sku: null, unit: "piece", current_quantity: 40, minimum_quantity: 50, cost_per_unit: 0.5, active: true, created_at: now, updated_at: now },
   ],
+  staff: [
+    { id: PREVIEW_USER.id, name: "Preview Cashier", email: PREVIEW_USER.email, role: "cashier", active: true, created_at: now, updated_at: now },
+  ],
+  inventory_report: [
+    { id: "preview-item-beans", name: "Coffee Beans", sku: null, unit: "kg", current_quantity: 5, minimum_quantity: 1, cost_per_unit: 85, active: true, created_at: now, updated_at: now, stock_status: "normal" },
+    { id: "preview-item-milk", name: "Milk", sku: null, unit: "litre", current_quantity: 12, minimum_quantity: 3, cost_per_unit: 12, active: true, created_at: now, updated_at: now, stock_status: "normal" },
+    { id: "preview-item-cups", name: "Cups", sku: null, unit: "piece", current_quantity: 40, minimum_quantity: 50, cost_per_unit: 0.5, active: true, created_at: now, updated_at: now, stock_status: "low_stock" },
+  ],
+}
+
+const PREVIEW_PAYMENT_METHODS = ["cash", "mobile_money", "card"] as const
+
+function previewSalesByDay(days: number) {
+  return Array.from({ length: days }, (_, i) => {
+    const day = new Date()
+    day.setUTCDate(day.getUTCDate() - (days - 1 - i))
+    const isWeekend = [0, 6].includes(day.getUTCDay())
+    const orderCount = isWeekend ? 8 + (i % 4) : 4 + (i % 5)
+    return {
+      day: day.toISOString().slice(0, 10),
+      revenue: orderCount * 32.5,
+      order_count: orderCount,
+    }
+  })
+}
+
+function previewSalesByHourToday() {
+  return Array.from({ length: 24 }, (_, hour) => {
+    const active = hour >= 7 && hour <= 18
+    const orderCount = active ? Math.max(0, 3 - Math.abs(hour - 10) / 3) | 0 : 0
+    return { hour, revenue: orderCount * 30, order_count: orderCount }
+  })
+}
+
+function previewSearchOrders(limit: number, offset: number) {
+  const all = Array.from({ length: 18 }, (_, i) => {
+    const completedAt = new Date()
+    completedAt.setUTCHours(completedAt.getUTCHours() - i * 3)
+    const method = PREVIEW_PAYMENT_METHODS[i % PREVIEW_PAYMENT_METHODS.length]
+    return {
+      id: `preview-order-${i}`,
+      order_number: 1000 + i,
+      completed_at: completedAt.toISOString(),
+      cashier_name: "Preview Cashier",
+      total: 28 + i * 3.5,
+      payment_method: method,
+      status: "completed",
+      payment_status: "paid",
+    }
+  })
+  return all.slice(offset, offset + limit).map((row) => ({ ...row, total_count: all.length }))
+}
+
+function previewProductPerformance(limit: number, offset: number) {
+  const catalog = LIST_DEFAULTS.products
+  const units = [42, 35, 21, 18, 9]
+  const all = catalog.map((product, i) => ({
+    product_id: product.id as string,
+    product_name: product.name as string,
+    units_sold: units[i] ?? 5,
+    revenue: (units[i] ?? 5) * (product.selling_price as number),
+  }))
+  const grandTotal = all.reduce((sum, row) => sum + row.revenue, 0) || 1
+  const withShare = all
+    .map((row) => ({
+      ...row,
+      percentage_of_sales: Math.round((row.revenue / grandTotal) * 1000) / 10,
+    }))
+    .sort((a, b) => b.revenue - a.revenue)
+  return withShare
+    .slice(offset, offset + limit)
+    .map((row) => ({ ...row, total_count: withShare.length }))
+}
+
+const READ_ONLY_RPCS: Record<string, (args: Record<string, unknown>) => unknown[]> = {
+  dashboard_stats: () => [
+    { total_sales: 452.5, order_count: 12, average_order_value: 37.71 },
+  ],
+  sales_by_day: (args) => previewSalesByDay(Number(args.p_days) || 7),
+  sales_by_hour_today: () => previewSalesByHourToday(),
+  payment_breakdown: () => [
+    { payment_method: "cash", transaction_count: 7, total_value: 245 },
+    { payment_method: "mobile_money", transaction_count: 4, total_value: 156.5 },
+    { payment_method: "card", transaction_count: 1, total_value: 51 },
+  ],
+  product_performance: (args) =>
+    previewProductPerformance(Number(args.p_limit) || 50, Number(args.p_offset) || 0),
+  search_orders: (args) =>
+    previewSearchOrders(Number(args.p_limit) || 25, Number(args.p_offset) || 0),
 }
 
 function emptyResultFor(table: string) {
@@ -118,8 +208,15 @@ export function createPreviewMockClient() {
     from(table: string) {
       return createQueryBuilder(table, false)
     },
-    rpc() {
-      return createQueryBuilder("rpc", true)
+    rpc(name: string, args: Record<string, unknown> = {}) {
+      const reader = READ_ONLY_RPCS[name]
+      if (!reader) {
+        return createQueryBuilder("rpc", true)
+      }
+      const data = reader(args)
+      return {
+        then: (resolve: (value: unknown) => void) => resolve({ data, error: null }),
+      }
     },
   } as unknown as SupabaseClient<Database>
 }
