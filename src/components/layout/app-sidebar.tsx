@@ -123,7 +123,7 @@ export function AppSidebar() {
               </div>
               <div className="grid flex-1 text-left leading-tight">
                 <span className="truncate font-semibold">
-                  Vybz
+                  JANE DOE CAFE
                 </span>
                 <span className="text-sidebar-foreground/60 truncate text-xs">
                   Point of Sale

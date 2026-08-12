@@ -40,7 +40,7 @@ export function Receipt({
   completedAt: string
   onNewSale: () => void
 }) {
-  const businessName = settings?.business_name ?? "Vybz"
+  const businessName = settings?.business_name ?? "JANE DOE CAFE"
   const date = new Date(completedAt)
   const paperWidth = settings?.receipt_paper_width ?? "80mm"
 

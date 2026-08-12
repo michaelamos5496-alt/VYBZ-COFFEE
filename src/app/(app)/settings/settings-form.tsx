@@ -143,7 +143,7 @@ export function SettingsForm({ settings }: { settings: BusinessSettings }) {
                 <FormItem className="sm:col-span-2">
                   <FormLabel>Business Name</FormLabel>
                   <FormControl>
-                    <Input placeholder="Vybz" {...field} />
+                    <Input placeholder="JANE DOE CAFE" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -182,7 +182,7 @@ export function SettingsForm({ settings }: { settings: BusinessSettings }) {
                 <FormItem>
                   <FormLabel>Email</FormLabel>
                   <FormControl>
-                    <Input placeholder="hello@vybz.com" {...field} />
+                    <Input placeholder="hello@janedoecafe.com" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -312,7 +312,7 @@ export function SettingsForm({ settings }: { settings: BusinessSettings }) {
                   <FormLabel>Receipt Footer</FormLabel>
                   <FormControl>
                     <Textarea
-                      placeholder="Thank you for visiting Vybz!"
+                      placeholder="Thank you for visiting JANE DOE CAFE!"
                       {...field}
                     />
                   </FormControl>

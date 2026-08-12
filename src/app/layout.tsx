@@ -16,8 +16,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Vybz",
-  description: "Point of sale and inventory management for Vybz",
+  title: "JANE DOE CAFE",
+  description: "Point of sale and inventory management for JANE DOE CAFE",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

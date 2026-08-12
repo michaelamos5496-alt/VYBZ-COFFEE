@@ -85,7 +85,7 @@ export function LoginForm() {
                     <Input
                       type="email"
                       autoComplete="email"
-                      placeholder="you@vybz.com"
+                      placeholder="you@janedoecafe.com"
                       {...field}
                     />
                   </FormControl>
